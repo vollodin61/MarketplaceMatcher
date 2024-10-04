@@ -6,7 +6,15 @@ import lxml.etree as ET
 from app.models import SKU
 
 
-def build_category_hierarchy(file_path: str):
+def build_category_hierarchy(file_path: str) -> (dict[int, str], dict[int, int]):
+    """
+    Строит иерархию категорий из XML-файла.
+
+    :param file_path: Путь к XML-файлу.
+    :return: Кортеж из двух словарей:
+             - categories: словарь, где ключ — ID категории, значение — название категории.
+             - parent_map: словарь, где ключ — ID категории, значение — ID родительской категории.
+    """
     categories = {}
     parent_map = {}
 
@@ -23,8 +31,15 @@ def build_category_hierarchy(file_path: str):
     return categories, parent_map
 
 
-def get_category_path(category_id, categories, parent_map):
-    # Получаем путь к категории
+def get_category_path(category_id: int, categories: dict[int, str], parent_map: dict[int, int]) -> list[str]:
+    """
+    Получает путь к категории по ее ID.
+
+    :param category_id: ID категории.
+    :param categories: Словарь с категориями.
+    :param parent_map: Словарь с родительскими категориями.
+    :return: Список названий категорий от корня до заданной категории.
+    """
     path = []
     current_id = category_id
     while current_id:
@@ -35,7 +50,13 @@ def get_category_path(category_id, categories, parent_map):
     return path
 
 
-def parse_features(elem: ET.Element) -> dict:
+def parse_features(elem: ET.Element) -> dict[str, str]:
+    """
+    Парсит характеристики товара из XML-элемента.
+
+    :param elem: Элемент XML, содержащий характеристики товара.
+    :return: Словарь характеристик, где ключ — название характеристики, значение — ее значение.
+    """
     features = {}
     for feature in elem.findall(".//features/feature"):
         key = feature.findtext("name")
@@ -45,7 +66,17 @@ def parse_features(elem: ET.Element) -> dict:
     return features
 
 
-async def parse_xml(file_path: str, categories, parent_map) -> AsyncGenerator[SKU, None]:
+async def parse_xml(
+    file_path: str, categories: dict[int, str], parent_map: dict[int, int]
+) -> AsyncGenerator[SKU, None]:
+    """
+    Парсит XML-файл и извлекает информацию о товарах, создавая объекты SKU.
+
+    :param file_path: Путь к XML-файлу.
+    :param categories: Словарь с категориями.
+    :param parent_map: Словарь с родительскими категориями.
+    :yield: Объекты SKU с данными о товарах.
+    """
     context = ET.iterparse(file_path, events=("end",), tag="offer")
 
     for _, elem in context:
