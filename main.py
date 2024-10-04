@@ -3,7 +3,7 @@ import asyncio
 from environs import Env
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.es_utils import init_es
+from app.es_utils import find_similar_skus, index_in_elasticsearch, init_es
 from app.models import Base
 from app.parser import build_category_hierarchy, parse_xml
 
@@ -31,8 +31,6 @@ async def main():
         f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@" f"{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
     ELASTICSEARCH_URL = env("ELASTICSEARCH_HOST")
-    ELASTICSEARCH_USER = env("ELASTICSEARCH_USER")
-    ELASTICSEARCH_PASSWORD = env("ELASTICSEARCH_PASSWORD")
 
     engine = create_async_engine(DATABASE_URL, echo=True)
     async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
@@ -42,7 +40,7 @@ async def main():
     await create_tables(engine)
 
     # Инициализируем Elasticsearch клиент
-    es_client = await init_es(ELASTICSEARCH_URL, ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORD)
+    es_client = await init_es(ELASTICSEARCH_URL)
 
     # Сначала получаем категории
     categories, parent_map = build_category_hierarchy(env("PATH_TO_FILE"))
@@ -51,14 +49,15 @@ async def main():
         # Парсим офферы
         async for sku in parse_xml(env("PATH_TO_FILE"), categories, parent_map):
             session.add(sku)
-            # # Индексируем товар в Elasticsearch
-            # await index_in_elasticsearch(es_client, sku)
-            #
-            # # Находим похожие товары
-            # similar_skus = await find_similar_skus(es_client, sku)
-            #
-            # # Обновляем поле similar_sku
-            # sku.similar_sku = similar_skus
+            # Индексируем товар в Elasticsearch
+            await index_in_elasticsearch(es_client, sku)
+
+            # Находим похожие товары
+            similar_skus = await find_similar_skus(es_client, sku)
+
+            # Обновляем поле similar_sku
+            sku.similar_sku = similar_skus
+            print(f"{'_' * 29} Updating SKU {sku.uuid} with similar SKUs: {similar_skus}")  # Добавляем вывод
 
             await session.commit()
 

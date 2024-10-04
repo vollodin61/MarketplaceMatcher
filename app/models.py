@@ -76,4 +76,7 @@ class SKU(Base):
     )
 
     def __repr__(self):
-        return f"<SKU(uuid={self.uuid}, title={self.title}, price={self.price_after_discounts})>"
+        return (
+            f"<SKU(uuid={self.uuid}, title={self.title}, price={self.price_after_discounts}, "
+            f"similar_sku={self.similar_sku})>"
+        )

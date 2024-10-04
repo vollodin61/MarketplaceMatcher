@@ -3,9 +3,9 @@ import uuid
 from elasticsearch import AsyncElasticsearch
 
 
-async def init_es(es_url: str, username: str, password: str):
+async def init_es(es_url: str):
     # Создаем клиент Elasticsearch
-    es_client = AsyncElasticsearch(hosts=[es_url], http_auth=(username, password))
+    es_client = AsyncElasticsearch(hosts=[es_url])
     return es_client
 
 
@@ -38,6 +38,7 @@ async def index_in_elasticsearch(es_client: AsyncElasticsearch, sku):
 
     try:
         await es_client.index(index="sku", id=str(sku.uuid), document=data)
+        print(f"{'_' * 29} Successfully indexed SKU {sku.uuid}")  # Добавляем вывод
     except Exception as e:
         print(f"Failed to index SKU {sku.uuid}: {e}")
 
@@ -59,7 +60,8 @@ async def find_similar_skus(es_client: AsyncElasticsearch, sku) -> list[uuid.UUI
         response = await es_client.search(index="sku", body=query)
         hits = response.get("hits", {}).get("hits", [])
         similar = [uuid.UUID(hit["_id"]) for hit in hits]
+        print(f"{'_' * 29} Found {len(similar)} similar SKUs for {sku.uuid}")  # Добавляем вывод
         return similar
     except Exception as e:
-        print(f"Failed to search similar SKUs for {sku.uuid}: {e}")
+        print(f"Failed to s search similar SKUs for {sku.uuid}: {e.__repr__()}")
         return []
